@@ -4,29 +4,30 @@ import scipy.signal
 import matplotlib.pyplot as plt
 
 
-class LMS:
-    def __init__(self, Wt, step_size=0.5):
-        self.Wt = np.squeeze(getattr(Wt, "A", Wt))
+class AdaptiveFilterLMS:
+    def __init__(self, filter_len=10, step_size=0.5):
+        # self.Wt = np.squeeze(getattr(Wt, "A", Wt))
+        self.weights = np.zeros((filter_len))
         self.step_size = step_size
 
-    def est(self, X, y, mode="prediction"):
+    def estimate(self, X, y, mode="prediction"):
 
         if mode == "prediction":
             X = np.squeeze(getattr(X, "A", X))
-            yest = self.Wt.dot(X)
+            yest = self.weights.dot(X)
             c = (y - yest) / X.dot(X)
-            self.Wt += self.step_size * c * X
+            self.weights += self.step_size * c * X
 
         elif mode == "cancelation":
-            yest = self.Wt * X
+            yest = self.weights * X
             e = y - yest
             c = e.dot(e) / X.dot(X)
-            self.Wt += self.step_size * c * X
+            self.weights += self.step_size * c * X
 
         return yest
 
 
-def chirp(n, f0=2, f1=40, t1=1):
+def get_chirp(n, f0=2, f1=40, t1=1):
     t = np.arange(n + 0.0) / n * t1
 
     return scipy.signal.chirp(t, f0, t1, f1)
@@ -48,7 +49,7 @@ if __name__ == "__main__":
 
             np.random.seed(seed)
 
-            signal_orig = chirp(signal_len, f1=f1)
+            signal_orig = get_chirp(signal_len, f1=f1)
 
             if noise_power:
                 signal_orig += np.random.normal(scale=noise_power, size=signal_len)
@@ -58,12 +59,14 @@ if __name__ == "__main__":
             targets = []
             yests = []
 
-            lms = LMS(np.zeros(filter_len), step_size=step_size)
+            adaptivefilterlms = AdaptiveFilterLMS(
+                filter_len=filter_len, step_size=step_size
+            )
 
             for t in range(signal_len - filter_len):
-                X = signal_orig[t: t + filter_len]
+                X = signal_orig[t : t + filter_len]
                 target = signal_orig[t + filter_len]  # predict
-                y_est = lms.est(X, target, mode=mode)
+                y_est = adaptivefilterlms.estimate(X, target, mode=mode)
                 targets += [target]
                 yests += [y_est]
 
@@ -102,13 +105,13 @@ if __name__ == "__main__":
 
             t = np.arange(signal_len + 0.0) / signal_len
 
-            signal_orig = chirp(signal_len, f1=f1)
+            signal_orig = get_chirp(signal_len, f1=f1)
 
             if noise_power:
                 noised_sig = (
-                        signal_orig
-                        + 0.05 * np.cos(2 * np.pi * (f1 / 4) * t)
-                        + 0.2 * np.random.normal(scale=noise_power, size=signal_len)
+                    signal_orig
+                    + 0.05 * np.cos(2 * np.pi * (f1 / 4) * t)
+                    + 0.2 * np.random.normal(scale=noise_power, size=signal_len)
                 )
 
             signal_orig *= 10
@@ -117,12 +120,14 @@ if __name__ == "__main__":
             targets = []
             yests = []
             iters = signal_len // filter_len
-            lms = LMS(np.zeros(filter_len), step_size=step_size)
+            adaptivefilterlms = AdaptiveFilterLMS(
+                filter_len=filter_len, step_size=step_size
+            )
 
             for t in range(iters):
-                X = noised_sig[filter_len * t: filter_len * (t + 1)]
-                target = signal_orig[filter_len * t: filter_len * (t + 1)]
-                y_est = lms.est(X, target, mode=mode)
+                X = noised_sig[filter_len * t : filter_len * (t + 1)]
+                target = signal_orig[filter_len * t : filter_len * (t + 1)]
+                y_est = adaptivefilterlms.estimate(X, target, mode=mode)
                 targets += [target]
                 yests += [y_est]
 

@@ -6,29 +6,27 @@ import matplotlib.pyplot as plt
 
 class AdaptiveFilterLMS:
     def __init__(self, filter_len=10, step_size=0.5):
-        # self.Wt = np.squeeze(getattr(Wt, "A", Wt))
         self.weights = np.zeros((filter_len))
         self.step_size = step_size
 
-    def estimate(self, X, y, mode="prediction"):
+    def estimate(self, X, target, mode="prediction"):
 
         if mode == "prediction":
-            X = np.squeeze(getattr(X, "A", X))
-            yest = self.weights.dot(X)
-            c = (y - yest) / X.dot(X)
-            self.weights += self.step_size * c * X
+            y_estimated = self.weights.dot(X)
+            del_J = (target - y_estimated) / X.dot(X)
+            self.weights += self.step_size * del_J * X
 
         elif mode == "cancelation":
-            yest = self.weights * X
-            e = y - yest
-            c = e.dot(e) / X.dot(X)
-            self.weights += self.step_size * c * X
+            y_estimated = self.weights * X
+            error = target - y_estimated
+            del_J = error.dot(error) / X.dot(X)
+            self.weights += self.step_size * del_J * X
 
-        return yest
+        return y_estimated
 
 
 def get_chirp(n, f0=2, f1=40, t1=1):
-    t = np.arange(n + 0.0) / n * t1
+    t = np.arange(n) / n * t1
 
     return scipy.signal.chirp(t, f0, t1, f1)
     # return np.cos(2 * np.pi * f1 * t) + np.cos(4 * np.pi * f1 * t)
@@ -103,8 +101,7 @@ if __name__ == "__main__":
 
             np.random.seed(seed)
 
-            t = np.arange(signal_len + 0.0) / signal_len
-
+            t = np.arange(signal_len) / signal_len
             signal_orig = get_chirp(signal_len, f1=f1)
 
             if noise_power:
